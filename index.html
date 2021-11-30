@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+    <title>Document</title>
+  </head>
+  <body>
+    <h1>PeerJS</h1>
+    <div
+      id="output"
+      style="
+        border: 1px solid black;
+        padding: 10px;
+        margin: 10px 0;
+        background: lightgray;
+      "
+    ></div>
+    <input type="file" />
+    <input type="text" id="connectionId" />
+    <button id="connect">Connect</button>
+    <script>
+      const connectBtn = document.querySelector("#connect");
+      const output = document.querySelector("#output");
+      const connectionId = document.querySelector("#connectionId");
+
+      const peer = new Peer();
+
+      let conn;
+
+      peer.on("open", (id) => {
+        console.log(`Peer ID: ${id}`);
+      });
+
+      peer.on("connection", function (conn) {
+        conn.on("data", (data) => {
+          if (data.filetype && data.filetype.includes("image")) {
+            const bytes = new Uint8Array(data.file);
+            const img = document.createElement("img");
+            img.src = "data:image/png;base64," + encode(bytes);
+
+            console.log(img);
+
+            output.prepend(img);
+          } else if (data.filename && data.filename.includes("debug")) {
+            console.log("file", data);
+            const link = document.createElement("a");
+            link.style.display = "none";
+            document.body.appendChild(link);
+
+            const blob = new Blob([data.file], { type: "text/plain" });
+            const objectURL = URL.createObjectURL(blob);
+
+            link.href = objectURL;
+            link.href = URL.createObjectURL(blob);
+            link.download = "data.txt";
+            link.click();
+          } else {
+            console.log(data);
+          }
+        });
+      });
+
+      const downloadFile = (file) => {
+        const element = document.createElement("a");
+        element.setAttribute("href", "Download Btn");
+        element.setAttribute("download", file);
+
+        element.style.display = "none";
+
+        document.body.appendChild(element);
+
+        element.click();
+        document.body.removeChild(element);
+      };
+
+      connectBtn.addEventListener("click", (e) => {
+        conn = peer.connect(connectionId.value);
+        conn.on("open", function () {
+          conn.send("hi!");
+        });
+      });
+
+      document.querySelector("input").addEventListener("change", (event) => {
+        console.log("ON CHANGE");
+        const file = event.target.files[0];
+        const blob = new Blob(event.target.files, { type: file.type });
+
+        console.log(blob);
+
+        conn.send({
+          file: blob,
+          filename: file.name,
+          filetype: file.type,
+        });
+      });
+
+      const encode = (input) => {
+        const keyStr =
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+        let output = "";
+        let chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+        let i = 0;
+
+        while (i < input.length) {
+          chr1 = input[i++];
+          chr2 = i < input.length ? input[i++] : Number.NaN; // Not sure if the index
+          chr3 = i < input.length ? input[i++] : Number.NaN; // checks are needed here
+
+          enc1 = chr1 >> 2;
+          enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+          enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+          enc4 = chr3 & 63;
+
+          if (isNaN(chr2)) {
+            enc3 = enc4 = 64;
+          } else if (isNaN(chr3)) {
+            enc4 = 64;
+          }
+          output +=
+            keyStr.charAt(enc1) +
+            keyStr.charAt(enc2) +
+            keyStr.charAt(enc3) +
+            keyStr.charAt(enc4);
+        }
+        return output;
+      };
+    </script>
+  </body>
+</html>
